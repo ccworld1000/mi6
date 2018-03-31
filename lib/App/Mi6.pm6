@@ -190,6 +190,7 @@ method regenerate-meta-info($module, $module-file) {
         resources     => $already<resources> || [],
         tags          => $already<tags> || [],
         license       => $already<license> || guess-license(),
+        resources     => find-resources(),
     ;
     %new-meta<auth> = $auth if $auth;
     for $already.keys -> $k {
@@ -263,7 +264,7 @@ method make-dist-tarball($main-module) {
     my @file = run("git", "ls-files", :out).out.lines(:close);
 
     my @prune = self.prune-files;
-    for @file -> $file {
+    for @file.map($normalize-path) -> $file {
         next if @prune.grep({$_($file)});
         my $target = "$name/$file";
         my $dir = $target.IO.dirname;
@@ -280,6 +281,14 @@ method make-dist-tarball($main-module) {
         die $err ?? $err !! "can't create tarball, exitcode = $exitcode";
     }
     return "$name.tar.gz";
+}
+
+sub find-resources {
+    my @file = run("git", "ls-files", :out, :!err).out.lines(:close);
+    @file.map($normalize-path)
+         .grep(*.starts-with('resources/'))
+         .map(*.subst(rx{^'resources/'}, ''))
+         .sort;
 }
 
 sub find-source-url() {
